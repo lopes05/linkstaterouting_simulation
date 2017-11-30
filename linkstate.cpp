@@ -1,6 +1,6 @@
 #include <bits/stdc++.h>
 #define MAX 10
-#define MAX_VAL 32000
+#define MAX_VAL INT_MAX
 
 using namespace std;
 
@@ -8,9 +8,8 @@ void printMenu(){
     cout << "\n\n######################################################" << endl;
     cout << " Link state routing simulation " << endl;
     cout << " (1) - Input network topology" << endl;
-    cout << " (2) - Build connection table" << endl;
-    cout << " (3) - Show the shortesst path to destination router " << endl;
-    cout << " (4) - Exit " << endl;
+    cout << " (2) - Show results" << endl;
+    cout << " (3) - Exit " << endl;
     cout << "######################################################" << endl << endl;
 }
 
@@ -39,36 +38,12 @@ vector<vector<int>> buildNetwork(string filename){
             routerMatrix.push_back(col);
             i++;
         }
-        void setDistances(vector<vector<int>> routerMatrix);
-        setDistances(routerMatrix);
     }
     else{
         cout << "Unable to open file" << endl;
         exit(1);
     }
     return routerMatrix;
-}
-
-map<int, map<int, int>> distances;
-vector<int> nodes;
-vector<int> unvisited;
-vector<int> previous;
-vector<int> visited;
-vector<int> interface;
-
-void setDistances(vector<vector<int>> routerMatrix){
-    for(int i = 0; i < routerMatrix.size(); i++){
-        map<int, int> tmp;
-        // to na duvida se é ate routerMatrix[i].size(), n
-        // sei se o cara so resolve NxN, la ta sem o i.
-        for(int j = 0; j < routerMatrix[i].size(); j++){
-            if(i != j and routerMatrix[i][j] != - 1){
-                tmp[j+1] = routerMatrix[i][j];
-            }
-        }
-        distances[i] = tmp;
-        nodes.push_back(i);
-    }
 }
 
 void printMatrix(vector<vector<int>> routerMatrix){
@@ -80,118 +55,112 @@ void printMatrix(vector<vector<int>> routerMatrix){
     }
 }
 
-bool done(){
-    for(auto ni: unvisited)
-        if(ni)
-            return false;
-
-    return true;
+int minDistance(vector<int> dist, bool sptSet[]){
+   int min = INT_MAX, min_index;
+  
+   for (int v = 0; v < dist.size(); v++)
+     if (sptSet[v] == false && dist[v] <= min)
+         min = dist[v], min_index = v;
+  
+   return min_index;
 }
 
-void djikstra(int start){
-    unvisited = vector<int>(nodes.size());
-    previous = vector<int>(nodes.size());
-    interface = vector<int>(nodes.size());
-    visited = vector<int>(nodes.size());
+void printPath(vector<int> parent, int end){
+	if (parent[end]==-1){
+        return;
+	}
+    printPath(parent, parent[end]);
+ 
+    printf("%d ", end);
+}
 
-    int current = start, current_dist = 0, next, dist;
-
-    unvisited[current] = current_dist;
-
-    while(true){
-        for(auto const& dists: distances[current]){
-
-            next = dists.first;
-            dist = dists.second;
-
-            map<int, int>::iterator it2 = distances[current].find(next);
-
-            if(it2 == distances[current].end())
-                continue;
-
-            int new_dist = current_dist + dist;
-
-            if(not unvisited[next] or unvisited[next] > new_dist){
-                unvisited[next] = new_dist;
-                previous[next] = current;
-
-                if(not interface[current])
-                    interface[next] = next;
-                else
-                    interface[next] = interface[current];
-            }
+void printSolution(vector<int> dist, vector<int> parent, int src){
+    printf("Vertex\t  Distance\tPath");
+    for(int i = 0; i < src; i++){
+    	if(dist[i] != MAX_VAL){
+        	printf("\n%d -> %d \t\t %d\t\t%d ", src, i, dist[i], src);
+        	printPath(parent, i);
         }
+        else{
+        	printf("\n(No connection between this routers)\n" );
+        }
+    }
 
-        visited[current] = current_dist;
-
-        if(unvisited.empty() or done())
-            break;
-
-        unvisited.erase(unvisited.begin() + current);
-
-        current_dist = MAX_VAL;
-
-        for(int i = 0; i < unvisited.size(); i++)
-            if(unvisited[i] < current_dist){
-                current = i;
-                current_dist = unvisited[i];
-            }
-
+    for(int i = src + 1; i < dist.size(); i++){
+        if(dist[i] != MAX_VAL){
+        	printf("\n%d -> %d \t\t %d\t\t%d ", src, i, dist[i], src);
+        	printPath(parent, i);
+        }
+        else{
+        	printf("\n(No connection between this routers)\n");
+        }
     }
 }
 
-void shortest_path(int start, int end){
+void dijkstra(vector<vector<int>> routerMatrix, int src){
+    const int len = routerMatrix.size();
+    vector<int> dist(len);
+  
+    bool visited[len];
+    vector<int> parent(len);
 
-    int dest = end, src = start;
-    vector<int> path;
-
-    path.push_back(dest);
-
-    while(dest != src){
-        path.push_back(previous[dest]);
-        dest = previous[dest];
+    for (int i = 0; i < len; i++){
+        dist[i] = MAX_VAL;
+        visited[i] = false;
+        parent[0] = -1;
     }
+  	parent[src] = -1;
+    dist[src] = 0;
 
-    cout << "The shortes path between " << start << "and " << end << "is: " << endl;
-    for(int i = path.size()-1; i >=0; --i)
-        cout << path[i] << '\t';
+	for (int i = 0; i < len-1; i++){
+	    int u = minDistance(dist, visited);
+	    visited[u] = true;
+		    for (int v = 0; v < len; v++){
+			    if (!visited[v] && routerMatrix[u][v] && dist[u] != INT_MAX 
+	          && dist[u]+routerMatrix[u][v] < dist[v] && routerMatrix[u][v] != -1){
+			   	parent[v] = u;
+	        	dist[v] = dist[u] + routerMatrix[u][v];
+			}
+		}
+	}
+  
+    printSolution(dist, parent, src);
 
-    cout << endl;
 }
 
 void getUserChoice(){
     int inputValue, start;
-
+    vector<vector<int>> network;
+    bool fileloaded = false;
     while(true){
         printMenu();
         cin >> inputValue;
         switch(inputValue){
             case 1: {
-                cout << "Insert filename: ";
+                cout << "Insert filename with a matrix(NxN): ";
                 string fn;
                 cin >> fn;
                 vector<vector<int>> buildNetwork(string filename);
                 void printMatrix(vector<vector<int>> routerMatrix);
                 cout << endl;
-                vector<vector<int>> network = buildNetwork(fn);
+                network = buildNetwork(fn);
                 printMatrix(network);
+                fileloaded = true;
                 break;
             }
             case 2: {
-                cout << "Insert initial node" << endl;
-                cin >> start;
-                djikstra(start);
-                for(auto key : interface)
-                    cout << key << "\t\t" << interface[key] << endl;
+            	if(fileloaded){
+                	cout << "Insert initial node (0~" << network.size() - 1 << "): ";
+                	cin >> start;
+                	cout << endl;
+                	dijkstra(network, start);
+            	}
+            	else{
+            		cout << "Please enter a file first" << endl;
+            	}
                 break;
             }
             case 3:
-                cout << "Insert final node" << endl;
-                int end;
-                cin >> end;
-                shortest_path(start, end);
-                break;
-            case 4:
                 exit(0);
                 break;
             default:
@@ -202,6 +171,5 @@ void getUserChoice(){
 
 int main(){
     getUserChoice();
-
     return 0;
 }
